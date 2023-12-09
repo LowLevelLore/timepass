@@ -8,6 +8,7 @@ use parser::Parser;
 
 use crate::scanner::*;
 use std::io::{self, Write};
+
 use std::{ffi::OsStr, path::Path};
 
 fn open_file(filename: String) -> Result<String, String> {
@@ -34,11 +35,13 @@ fn run(contents: String) -> Result<(), String> {
     let tokens: Vec<Token> = sc.scan_tokens()?;
     let mut parser = Parser::new(tokens.clone());
     let expr: Expression = parser.parse();
+    let result = expr.evaluate()?;
     let mut i: u64 = 0;
     for token in tokens {
         println!("Token {} : {}", i, token.to_string());
         i += 1;
     }
+    println!("RESULT : {}", result.to_string());
     println!("{}", expr.to_string());
     return Ok(());
 }

@@ -378,6 +378,46 @@ pub enum LiteralValue {
     Nil,
 }
 
+impl LiteralValue {
+    pub(crate) fn is_falsy(self: &mut Self) -> Result<LiteralValue, String> {
+        match self {
+            LiteralValue::IntValue(x) => {
+                if x.clone() == 0 {
+                    return Ok(LiteralValue::True);
+                } else {
+                    return Ok(LiteralValue::False);
+                }
+            }
+            LiteralValue::FValue(x) => {
+                if x.clone() == 0.0 {
+                    return Ok(LiteralValue::True);
+                } else {
+                    return Ok(LiteralValue::False);
+                }
+            }
+            LiteralValue::StringValue(x) => {
+                if x.len() == (0 as usize) {
+                    return Ok(LiteralValue::True);
+                } else {
+                    return Ok(LiteralValue::False);
+                }
+            }
+            LiteralValue::IdentifierValue(_) => {
+                return Err(format!("Identifier is not implemented now ! "));
+            }
+            LiteralValue::True => {
+                return Ok(LiteralValue::False);
+            }
+            LiteralValue::False => {
+                return Ok(LiteralValue::True);
+            }
+            LiteralValue::Nil => {
+                return Ok(LiteralValue::True);
+            }
+        }
+    }
+}
+
 impl std::fmt::Display for LiteralValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         return write!(f, "{:?}", self);
