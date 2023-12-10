@@ -1,5 +1,6 @@
 extern crate lazy_static;
 
+use crate::errors::Error;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
@@ -58,7 +59,7 @@ impl<'a> Scanner<'a> {
         };
     }
 
-    pub fn scan_tokens(self: &mut Self) -> Result<Vec<Token>, String> {
+    pub fn scan_tokens(self: &mut Self) -> Result<Vec<Token>, Error> {
         while !self.is_at_end() {
             self.start = self.current;
             self.scan_token()?;
@@ -84,7 +85,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn scan_token(self: &mut Self) -> Result<(), String> {
+    fn scan_token(self: &mut Self) -> Result<(), Error> {
         let c: char = self.advance();
         match c {
             '(' => self.add_token(TokenType::LEFT_PAREN),
@@ -134,7 +135,9 @@ impl<'a> Scanner<'a> {
                     self.add_token(TokenType::SLASH);
                 }
             }
-            ' ' => {}
+            ' ' => {
+                
+            }
             '\n' => {
                 self.line += 1;
             }
@@ -142,8 +145,8 @@ impl<'a> Scanner<'a> {
             '\r' => {}
             '"' => match self.string() {
                 Ok(_) => {}
-                Err(msg) => {
-                    println!("{}", msg);
+                Err(err) => {
+                    return Err(err);
                 }
             },
             _ => {
@@ -157,10 +160,7 @@ impl<'a> Scanner<'a> {
                 } else if is_alpha(c) {
                     self.identifier();
                 } else {
-                    return Err(
-                        format!("Unidentified token: \'{}\' at line : {}", c, self.line)
-                            .to_string(),
-                    );
+                    return Err(Error::UnknownToken(c, self.line as i128));
                 }
             }
         }
@@ -188,7 +188,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn number(self: &mut Self) -> Result<(), String> {
+    fn number(self: &mut Self) -> Result<(), Error> {
         while is_digit(self.peek()) {
             self.advance();
         }
@@ -206,10 +206,10 @@ impl<'a> Scanner<'a> {
                     self.add_token_to_scanner(TokenType::NUMBER, Some(LiteralValue::FValue(value)));
                     return Ok(());
                 }
-                Err(msg) => {
-                    return Err(format!(
-                        "PARSING FAILED AT LINE : {}, CANNOT PARSE : {}, as f64 !\n{}",
-                        self.line, substr, msg
+                Err(_) => {
+                    return Err(Error::ParsingError(
+                        format!("cannot parse {} as Float", substr),
+                        self.line as i128,
                     ));
                 }
             }
@@ -226,10 +226,10 @@ impl<'a> Scanner<'a> {
                     );
                     return Ok(());
                 }
-                Err(msg) => {
-                    return Err(format!(
-                        "PARSING FAILED AT LINE : {}, CANNOT PARSE : {}, as f64 !\n{}.",
-                        self.line, substr, msg
+                Err(_) => {
+                    return Err(Error::ParsingError(
+                        format!("cannot parse {} as Integer", substr),
+                        self.line as i128,
                     ));
                 }
             }
@@ -244,7 +244,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn string(self: &mut Self) -> Result<(), String> {
+    fn string(self: &mut Self) -> Result<(), Error> {
         while !self.is_at_end() && self.peek() != '"' {
             if self.peek() == '\n' {
                 self.line += 1;
@@ -253,7 +253,7 @@ impl<'a> Scanner<'a> {
             // println!("ADVANCED : {}", c);
         }
         if self.is_at_end() {
-            return Err(format!("Unterminated String on line : {}", self.line).to_string());
+            return Err(Error::UnterminatedStringError(self.line as i128));
         } else {
             self.advance();
             let mut value: String = String::new();
@@ -308,7 +308,7 @@ impl<'a> Scanner<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
 #[allow(dead_code)]
 pub enum TokenType {
@@ -379,7 +379,7 @@ pub enum LiteralValue {
 }
 
 impl LiteralValue {
-    pub(crate) fn is_falsy(self: &mut Self) -> Result<LiteralValue, String> {
+    pub(crate) fn is_falsy(self: &mut Self) -> Result<LiteralValue, Error> {
         match self {
             LiteralValue::IntValue(x) => {
                 if x.clone() == 0 {
@@ -403,7 +403,8 @@ impl LiteralValue {
                 }
             }
             LiteralValue::IdentifierValue(_) => {
-                return Err(format!("Identifier is not implemented now ! "));
+                todo!();
+                // return Err(format!("Identifier is not implemented now ! "));
             }
             LiteralValue::True => {
                 return Ok(LiteralValue::False);
@@ -450,6 +451,7 @@ impl Token {
 }
 
 impl Token {
+    #[allow(dead_code)]
     pub fn to_string(self: &Token) -> String {
         match &self.literal {
             Some(literal) => {

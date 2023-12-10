@@ -1,9 +1,9 @@
+mod errors;
 mod expressions;
 mod parser;
 mod scanner;
-pub mod tests;
+mod tests;
 
-use expressions::Expression;
 use parser::Parser;
 
 use crate::scanner::*;
@@ -32,18 +32,34 @@ fn run_file(filename: String) -> Result<(), String> {
 
 fn run(contents: String) -> Result<(), String> {
     let mut sc = Scanner::new(contents.as_bytes());
-    let tokens: Vec<Token> = sc.scan_tokens()?;
-    let mut parser = Parser::new(tokens.clone());
-    let expr: Expression = parser.parse();
-    let result = expr.evaluate()?;
-    let mut i: u64 = 0;
-    for token in tokens {
-        println!("Token {} : {}", i, token.to_string());
-        i += 1;
+    match sc.scan_tokens() {
+        Ok(tokens) => {
+            let mut parser = Parser::new(tokens.clone());
+            match parser.parse() {
+                Ok(expr) => {
+                    let mut i: u64 = 0;
+                    for token in tokens {
+                        println!("Token {} : {}", i, token.to_string());
+                        i += 1;
+                    }
+                    match expr.evaluate() {
+                        Ok(result) => {
+                            println!("RESULT : {}", result.to_string());
+                            println!("{}", expr.to_string());
+                            return Ok(());
+                        }
+                        Err(err) => {
+                            return Err(err.to_string());
+                        }
+                    }
+                }
+                Err(_) => todo!(),
+            }
+        }
+        Err(e) => {
+            return Err(e.to_string());
+        }
     }
-    println!("RESULT : {}", result.to_string());
-    println!("{}", expr.to_string());
-    return Ok(());
 }
 
 fn check_extension(filename: String, extension: String) -> bool {

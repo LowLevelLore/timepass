@@ -1,4 +1,7 @@
-use crate::scanner::{LiteralValue, Token, TokenType};
+use crate::{
+    errors::Error,
+    scanner::{LiteralValue, Token, TokenType},
+};
 
 pub enum Expression {
     Binary {
@@ -50,7 +53,7 @@ impl Expression {
 
     // Task for tomorrow : Define edge cases showing more plausible errors
     // Check for division by zero
-    pub fn evaluate(self: &Self) -> Result<LiteralValue, String> {
+    pub fn evaluate(self: &Self) -> Result<LiteralValue, Error> {
         match self {
             Expression::Binary {
                 left,
@@ -99,32 +102,28 @@ impl Expression {
                         return Ok(LiteralValue::FValue(x * y));
                     }
                     (LiteralValue::IntValue(x), TokenType::SLASH, LiteralValue::IntValue(y)) => {
+                        if y == 0 {
+                            return Err(Error::ZeroDivisionError(operator.clone()));
+                        }
                         return Ok(LiteralValue::FValue((x as f64 / y as f64) as f64));
                     }
                     (LiteralValue::FValue(x), TokenType::SLASH, LiteralValue::IntValue(y)) => {
+                        if y == 0 {
+                            return Err(Error::ZeroDivisionError(operator.clone()));
+                        }
                         return Ok(LiteralValue::FValue(x / (y as f64)));
                     }
                     (LiteralValue::IntValue(x), TokenType::SLASH, LiteralValue::FValue(y)) => {
+                        if y == 0.0 {
+                            return Err(Error::ZeroDivisionError(operator.clone()));
+                        }
                         return Ok(LiteralValue::FValue((x as f64) / y));
                     }
                     (LiteralValue::FValue(x), TokenType::SLASH, LiteralValue::FValue(y)) => {
+                        if y == 0.0 {
+                            return Err(Error::ZeroDivisionError(operator.clone()));
+                        }
                         return Ok(LiteralValue::FValue(x / y));
-                    }
-                    (LiteralValue::StringValue(_), TokenType::PLUS, LiteralValue::IntValue(_)) => {
-                        return Err(format!(
-                            "Invalid operation '+' between string and integer ! "
-                        ));
-                    }
-                    (LiteralValue::IntValue(_), TokenType::PLUS, LiteralValue::StringValue(_)) => {
-                        return Err(format!(
-                            "Invalid operation '+' between string and integer ! "
-                        ));
-                    }
-                    (LiteralValue::StringValue(_), TokenType::PLUS, LiteralValue::FValue(_)) => {
-                        return Err(format!("Invalid operation '+' between string and float ! "));
-                    }
-                    (LiteralValue::FValue(_), TokenType::PLUS, LiteralValue::StringValue(_)) => {
-                        return Err(format!("Invalid operation '+' between string and float ! "));
                     }
                     (LiteralValue::StringValue(x), TokenType::STAR, LiteralValue::IntValue(y)) => {
                         let mut ans = String::new();
@@ -139,12 +138,6 @@ impl Expression {
                             ans.push_str(&y);
                         }
                         return Ok(LiteralValue::StringValue(ans));
-                    }
-                    (LiteralValue::StringValue(_), TokenType::STAR, LiteralValue::FValue(_)) => {
-                        return Err(format!("Invalid operation '*' between string and float ! "));
-                    }
-                    (LiteralValue::FValue(_), TokenType::STAR, LiteralValue::StringValue(_)) => {
-                        return Err(format!("Invalid operation '*' between string and float ! "));
                     }
                     (
                         LiteralValue::StringValue(x),
@@ -379,8 +372,30 @@ impl Expression {
                             return Ok(LiteralValue::False);
                         }
                     }
-                    _ => {
-                        return Err("OPERATION NOT IMPLEMENTED !".to_string());
+                    (
+                        LiteralValue::StringValue(x),
+                        TokenType::GREATER,
+                        LiteralValue::StringValue(y),
+                    ) => {
+                        if x > y {
+                            return Ok(LiteralValue::True);
+                        } else {
+                            return Ok(LiteralValue::False);
+                        }
+                    }
+                    (
+                        LiteralValue::StringValue(x),
+                        TokenType::LESS,
+                        LiteralValue::StringValue(y),
+                    ) => {
+                        if x < y {
+                            return Ok(LiteralValue::True);
+                        } else {
+                            return Ok(LiteralValue::False);
+                        }
+                    }
+                    (left, _, right) => {
+                        return Err(Error::InvalidBinaryOperation(left, operator.clone(), right));
                     }
                 }
             }
@@ -390,17 +405,17 @@ impl Expression {
                     (LiteralValue::IntValue(x), TokenType::MINUS) => {
                         return Ok(LiteralValue::IntValue(-x));
                     }
-                    (_, TokenType::MINUS) => {
-                        return Err(format!(
-                            "Minus is not implemented for {}",
-                            right.to_string()
-                        ));
+                    (value, TokenType::MINUS) => {
+                        return Err(Error::InvalidUnaryOperation(value, operator.clone()));
                     }
-                    (mut any, TokenType::BANG) => {
-                        return Ok(any.is_falsy().expect("SOMETHING HAPPENED"));
-                    }
-                    _ => {
-                        todo!();
+                    (mut any, TokenType::BANG) => match any.is_falsy() {
+                        Ok(value) => {
+                            return Ok(value);
+                        }
+                        Err(err) => Err(err),
+                    },
+                    (value, _) => {
+                        return Err(Error::InvalidUnaryOperation(value, operator.clone()));
                     }
                 }
             }

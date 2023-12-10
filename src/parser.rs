@@ -1,6 +1,5 @@
-use core::panic;
-
 use crate::{
+    errors::Error,
     expressions::Expression,
     scanner::{LiteralValue, Token, TokenType},
 };
@@ -18,14 +17,14 @@ impl Parser {
         };
     }
 
-    fn expression(self: &mut Self) -> Result<Expression, String> {
+    fn expression(self: &mut Self) -> Result<Expression, Error> {
         match self.equality() {
             Ok(expr) => return Ok(expr),
             Err(msg) => return Err(msg),
         }
     }
 
-    fn equality(self: &mut Self) -> Result<Expression, String> {
+    fn equality(self: &mut Self) -> Result<Expression, Error> {
         match self.comparison() {
             Ok(mut expr) => {
                 while self.match_tokens(&[TokenType::BANG_EQUAL, TokenType::EQUAL_EQUAL]) {
@@ -86,7 +85,7 @@ impl Parser {
         return self.peek().token_type == TokenType::EOF;
     }
 
-    fn comparison(self: &mut Self) -> Result<Expression, String> {
+    fn comparison(self: &mut Self) -> Result<Expression, Error> {
         match self.term() {
             Ok(mut expr) => {
                 while self.match_tokens(&[
@@ -113,7 +112,7 @@ impl Parser {
         }
     }
 
-    fn term(self: &mut Self) -> Result<Expression, String> {
+    fn term(self: &mut Self) -> Result<Expression, Error> {
         match self.factor() {
             Ok(mut expr) => {
                 while self.match_tokens(&[TokenType::MINUS, TokenType::PLUS]) {
@@ -135,7 +134,7 @@ impl Parser {
         }
     }
 
-    fn factor(self: &mut Self) -> Result<Expression, String> {
+    fn factor(self: &mut Self) -> Result<Expression, Error> {
         match self.unary() {
             Ok(mut expr) => {
                 while self.match_tokens(&[TokenType::SLASH, TokenType::STAR]) {
@@ -157,7 +156,7 @@ impl Parser {
         }
     }
 
-    fn unary(self: &mut Self) -> Result<Expression, String> {
+    fn unary(self: &mut Self) -> Result<Expression, Error> {
         if self.match_tokens(&[TokenType::BANG, TokenType::MINUS]) {
             let operator: Token = self.previous().clone();
             let right = self.unary();
@@ -177,7 +176,7 @@ impl Parser {
         }
     }
 
-    fn primary(self: &mut Self) -> Result<Expression, String> {
+    fn primary(self: &mut Self) -> Result<Expression, Error> {
         if self.match_tokens(&[TokenType::FALSE]) {
             return Ok(Expression::Literal {
                 value: LiteralValue::False,
@@ -197,10 +196,7 @@ impl Parser {
         } else if self.match_tokens(&[TokenType::LEFT_PAREN]) {
             match self.expression() {
                 Ok(expr) => {
-                    match self.consume(
-                        TokenType::RIGHT_PAREN,
-                        "Expect ')' after Expression. ".to_string(),
-                    ) {
+                    match self.consume(TokenType::RIGHT_PAREN) {
                         Ok(_) => (),
                         Err(err) => return Err(err),
                     }
@@ -218,15 +214,11 @@ impl Parser {
         }
     }
 
-    fn consume(self: &mut Self, typ: TokenType, msg: String) -> Result<Token, String> {
+    fn consume(self: &mut Self, typ: TokenType) -> Result<Token, Error> {
         if self.check(&typ) {
             return Ok(self.advance().clone());
         } else {
-            return Err(format!(
-                "PARSING ERROR at line {}, {}",
-                self.peek().line_number,
-                msg
-            ));
+            return Err(Error::UnterminatedParenthesis(self.peek()));
         }
     }
 
@@ -258,10 +250,10 @@ impl Parser {
         }
     }
 
-    pub fn parse(self: &mut Self) -> Expression {
+    pub fn parse(self: &mut Self) -> Result<Expression, Error> {
         match self.expression() {
-            Ok(expr) => expr,
-            Err(msg) => panic!("PARSING ERROR, {}", msg),
+            Ok(expr) => Ok(expr),
+            Err(err) => Err(err),
         }
     }
 }
