@@ -207,11 +207,15 @@ impl Parser {
                 }
                 Err(msg) => return Err(msg),
             }
+        } else if self.peek().token_type == TokenType::IDENTIFIER {
+            self.advance();
+            return Ok(Expression::Variable {
+                name: self.previous(),
+            });
         } else {
-            todo!();
-            // return Ok(Expression::Literal {
-            //     value: LiteralValue::IntValue(69),
-            // });
+            return Ok(Expression::Literal {
+                value: LiteralValue::IntValue(69),
+            });
         }
     }
 
@@ -258,7 +262,7 @@ impl Parser {
         //     Err(err) => Err(err),
         // }
         while !self.is_at_end() {
-            match self.statement() {
+            match self.declaration() {
                 Ok(statement) => {
                     statements.push(statement);
                 }
@@ -268,6 +272,49 @@ impl Parser {
             }
         }
         return Ok(statements);
+    }
+
+    fn declaration(self: &mut Self) -> Result<Statement, Error> {
+        if self.match_tokens(&[TokenType::VAR]) {
+            match self.var_declaration() {
+                Ok(statement) => {
+                    return Ok(statement);
+                }
+                Err(err) => {
+                    self.synchronize();
+                    return Err(err);
+                }
+            }
+        } else {
+            return self.statement();
+        }
+    }
+
+    fn var_declaration(self: &mut Self) -> Result<Statement, Error> {
+        match self.consume(TokenType::IDENTIFIER, "Variable name".to_string()) {
+            Ok(name) => {
+                let initializer;
+                if self.match_tokens(&[TokenType::EQUAL]) {
+                    match self.expression() {
+                        Ok(expr) => {
+                            initializer = expr;
+                            let _ = self.consume(TokenType::SEMICOLON, "Missing ';'".to_string());
+                            return Ok(Statement::Variable(name, initializer));
+                        }
+                        Err(err) => {
+                            return Err(err);
+                        }
+                    }
+                } else {
+                    initializer = Expression::Literal {
+                        value: LiteralValue::Nil,
+                    };
+                    let _ = self.consume(TokenType::SEMICOLON, "Missing ';'".to_string());
+                    return Ok(Statement::Variable(name, initializer));
+                }
+            }
+            Err(err) => return Err(err),
+        }
     }
 
     fn statement(self: &mut Self) -> Result<Statement, Error> {

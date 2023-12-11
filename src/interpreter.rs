@@ -1,28 +1,45 @@
-use crate::{errors::Error, statements::Statement};
+use crate::{
+    environment::Environment, errors::Error,
+    statements::Statement,
+};
 
-pub struct Interpreter {}
+pub struct Interpreter {
+    environment: Environment,
+}
 
 impl Interpreter {
     pub fn new() -> Interpreter {
-        return Interpreter {};
+        return Interpreter {
+            environment: Environment::new(),
+        };
     }
 
     pub fn interpret(self: &mut Self, sts: Vec<Statement>) -> Result<(), String> {
         let mut errors: Vec<Error> = Vec::new();
         for st in sts {
             match st {
-                Statement::ExpressionStatement(expr) => match expr.evaluate() {
-                    Ok(_) => {}
-                    Err(err) => {
-                        return Err(err.to_string());
+                Statement::ExpressionStatement(expr) => {
+                    match expr.evaluate(&mut self.environment) {
+                        Ok(_) => {}
+                        Err(err) => {
+                            return Err(err.to_string());
+                        }
                     }
-                },
-                Statement::PrintStatement(expr) => match expr.evaluate() {
+                }
+                Statement::PrintStatement(expr) => match expr.evaluate(&mut self.environment) {
                     Ok(value) => {
                         print!("{}", value.to_string());
                     }
                     Err(err) => {
                         errors.push(err);
+                    }
+                },
+                Statement::Variable(name, init) => match init.evaluate(&mut self.environment) {
+                    Ok(val) => {
+                        self.environment.define(name.lexeme, val);
+                    }
+                    Err(err) => {
+                        return Err(err.to_string());
                     }
                 },
             }

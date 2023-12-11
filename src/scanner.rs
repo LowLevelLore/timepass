@@ -98,6 +98,7 @@ impl<'a> Scanner<'a> {
             '+' => self.add_token(TokenType::PLUS),
             ';' => self.add_token(TokenType::SEMICOLON),
             '*' => self.add_token(TokenType::STAR),
+            '%' => self.add_token(TokenType::MODULO),
             '!' => {
                 if self.match_double('=') {
                     self.add_token(TokenType::BANG_EQUAL);
@@ -198,7 +199,8 @@ impl<'a> Scanner<'a> {
             if !self.is_at_end() {
                 let next = self.peek() as char;
                 match next {
-                    '=' | '!' | '*' | '+' | '-' | '/' | '>' | '<' | ' ' | ';' | ')' | '(' => {}
+                    '=' | '!' | '*' | '+' | '-' | '/' | '>' | '<' | ' ' | ';' | ')' | '(' | '%' => {
+                    }
                     _ => {
                         return Err(Error::ExpectedAToken(
                             Token {
@@ -207,7 +209,7 @@ impl<'a> Scanner<'a> {
                                 literal: None,
                                 line_number: self.line,
                             },
-                            "valid tokens : '=' | '!' | '*' | '+' | '-' | '/' | '>' | '<' | ' ' | ';' | ')' | '('"
+                            "valid tokens : '=' | '!' | '*' | '+' | '-' | '/' | '>' | '<' | ' ' | ';' | ')' | '(' | '%' "
                                 .to_string(),
                         ));
                     }
@@ -233,8 +235,8 @@ impl<'a> Scanner<'a> {
             if !self.is_at_end() {
                 let next = self.peek() as char;
                 match next {
-                    '=' | '!' | '*' | '+' | '-' | '/' | '>' | '<' | ' ' | ';' | '.' | ')' | '(' => {
-                    }
+                    '=' | '!' | '*' | '+' | '-' | '/' | '>' | '<' | ' ' | ';' | '.' | ')' | '('
+                    | '%' => {}
                     _ => {
                         return Err(Error::ExpectedAToken(
                             Token {
@@ -243,7 +245,7 @@ impl<'a> Scanner<'a> {
                                 literal: None,
                                 line_number: self.line,
                             },
-                            "valid token : '=' | '!' | '*' | '+' | '-' | '/' | '>' | '<' | ' ' | ';' | '.' | ')' | '('"
+                            "valid token : '=' | '!' | '*' | '+' | '-' | '/' | '>' | '<' | ' ' | ';' | '.' | ')' | '(' | '%' "
                                 .to_string(),
                         ));
                     }
@@ -285,7 +287,6 @@ impl<'a> Scanner<'a> {
                 self.line += 1;
             }
             self.advance();
-            // println!("ADVANCED : {}", c);
         }
         if self.is_at_end() {
             return Err(Error::UnterminatedStringError(self.line as i128));
@@ -295,7 +296,6 @@ impl<'a> Scanner<'a> {
             for i in (self.start + 1)..(self.current - 1) {
                 value.push(self.source_as_bytes[i] as char)
             }
-            println!("STR VAL : {}", value);
             self.add_token_to_scanner(TokenType::STRING, Some(LiteralValue::StringValue(value)));
             return Ok(());
         }
@@ -358,6 +358,7 @@ pub enum TokenType {
     SEMICOLON,
     SLASH,
     STAR,
+    MODULO,
 
     // One or two character tokens.
     BANG,
@@ -402,7 +403,7 @@ impl std::fmt::Display for TokenType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[allow(dead_code)]
 pub enum LiteralValue {
     IntValue(i128),
@@ -487,7 +488,7 @@ impl std::fmt::Display for LiteralValue {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub(crate) token_type: TokenType,
     pub(crate) lexeme: String,

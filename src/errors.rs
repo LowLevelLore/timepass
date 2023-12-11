@@ -21,6 +21,9 @@ pub enum Error {
 
     // PARSING ERROR
     ParsingError(String, i128),
+
+    // Expressions
+    NullExpression(i128),
 }
 
 impl fmt::Display for Error {
@@ -79,6 +82,9 @@ impl Error {
             }
             Error::ExpectedAToken(token, msg) => {
                 format!("EXPECTED A TOKEN : {} on line {}", msg, token.line_number)
+            }
+            Error::NullExpression(line) => {
+                format!("TRYING TO EVALUATE NULL EXPRESSION on line {line}")
             }
         }
     }

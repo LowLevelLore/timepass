@@ -1,8 +1,10 @@
 use crate::{
+    environment::Environment,
     errors::Error,
     scanner::{LiteralValue, Token, TokenType},
 };
 
+#[derive(PartialEq)]
 pub enum Expression {
     Binary {
         left: Box<Expression>,
@@ -18,6 +20,9 @@ pub enum Expression {
     },
     Literal {
         value: LiteralValue,
+    },
+    Variable {
+        name: Token,
     },
 }
 
@@ -48,19 +53,21 @@ impl Expression {
             Expression::Literal { value } => {
                 return format!("{}", value.to_string()).to_string();
             }
+            Expression::Variable { name } => {
+                return format!("VARIABLE : {}", name.lexeme);
+            }
         }
     }
 
-
-    pub fn evaluate(self: &Self) -> Result<LiteralValue, Error> {
+    pub fn evaluate(self: &Self, environment: &mut Environment) -> Result<LiteralValue, Error> {
         match self {
             Expression::Binary {
                 left,
                 operator,
                 right,
             } => {
-                let left = left.evaluate()?;
-                let right = right.evaluate()?;
+                let left = left.evaluate(environment)?;
+                let right = right.evaluate(environment)?;
 
                 match (left, operator.token_type.clone(), right) {
                     // ARITHMETIC
@@ -393,13 +400,19 @@ impl Expression {
                             return Ok(LiteralValue::False);
                         }
                     }
+                    (LiteralValue::IntValue(x), TokenType::MODULO, LiteralValue::IntValue(y)) => {
+                        return Ok(LiteralValue::IntValue(x % y));
+                    }
+                    (LiteralValue::FValue(x), TokenType::MODULO, LiteralValue::FValue(y)) => {
+                        return Ok(LiteralValue::FValue(x % y));
+                    }
                     (left, _, right) => {
                         return Err(Error::InvalidBinaryOperation(left, operator.clone(), right));
                     }
                 }
             }
             Expression::Unary { operator, right } => {
-                let right = right.evaluate()?;
+                let right = right.evaluate(environment)?;
                 match (right.clone(), operator.token_type.clone()) {
                     (LiteralValue::IntValue(x), TokenType::MINUS) => {
                         return Ok(LiteralValue::IntValue(-x));
@@ -419,11 +432,17 @@ impl Expression {
                 }
             }
             Expression::Grouping { expression } => {
-                return expression.evaluate();
+                return expression.evaluate(environment);
             }
             Expression::Literal { value } => {
                 return Ok(value.clone());
             }
+            Expression::Variable { name } => match (*environment).get(name.lexeme.clone()) {
+                Ok(value) => {
+                    return Ok(value);
+                }
+                Err(_) => return Err(Error::InvalidToken(name.clone())),
+            },
         }
     }
 }

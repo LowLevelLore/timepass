@@ -1,3 +1,4 @@
+mod environment;
 mod errors;
 mod expressions;
 mod interpreter;
@@ -23,10 +24,11 @@ fn open_file(filename: String) -> Result<String, String> {
 }
 
 fn run_file(filename: String) -> Result<(), String> {
+    let mut interpreter = Interpreter::new();
     match open_file(filename) {
         Ok(contents) => {
             println!("{}", contents);
-            match run(contents) {
+            match run(contents, &mut interpreter) {
                 Ok(_) => {
                     return Ok(());
                 }
@@ -41,12 +43,11 @@ fn run_file(filename: String) -> Result<(), String> {
     }
 }
 
-fn run(contents: String) -> Result<(), String> {
+fn run(contents: String, interpreter: &mut Interpreter) -> Result<(), String> {
     let mut sc = Scanner::new(contents.as_bytes());
     match sc.scan_tokens() {
         Ok(tokens) => {
             let mut parser = Parser::new(tokens.clone());
-            let mut interpreter = Interpreter::new();
             match parser.parse() {
                 Ok(statements) => {
                     match interpreter.interpret(statements) {
@@ -77,6 +78,7 @@ fn check_extension(filename: String, extension: String) -> bool {
 }
 
 fn open_shell() -> Result<(), String> {
+    let mut interpreter = Interpreter::new();
     #[allow(while_true)]
     while true {
         print!("> ");
@@ -94,7 +96,7 @@ fn open_shell() -> Result<(), String> {
             }
             Err(_) => return Err("Unable to read from buffer!".to_string()),
         }
-        match run(buffer.clone()) {
+        match run(buffer.clone(), &mut interpreter) {
             Ok(_) => {
                 buffer.clear();
                 println!("");
