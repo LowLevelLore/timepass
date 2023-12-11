@@ -1,12 +1,16 @@
 mod errors;
 mod expressions;
+mod interpreter;
 mod parser;
 mod scanner;
+mod statements;
 mod tests;
 
+use interpreter::Interpreter;
 use parser::Parser;
 
 use crate::scanner::*;
+use colored::Colorize;
 use std::io::{self, Write};
 
 use std::{ffi::OsStr, path::Path};
@@ -21,11 +25,18 @@ fn open_file(filename: String) -> Result<String, String> {
 fn run_file(filename: String) -> Result<(), String> {
     match open_file(filename) {
         Ok(contents) => {
-            let _ = run(contents);
-            return Ok(());
+            println!("{}", contents);
+            match run(contents) {
+                Ok(_) => {
+                    return Ok(());
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            }
         }
-        Err(_) => {
-            return Err("Cannot open file!".to_string());
+        Err(e) => {
+            return Err(e);
         }
     }
 }
@@ -35,25 +46,19 @@ fn run(contents: String) -> Result<(), String> {
     match sc.scan_tokens() {
         Ok(tokens) => {
             let mut parser = Parser::new(tokens.clone());
+            let mut interpreter = Interpreter::new();
             match parser.parse() {
-                Ok(expr) => {
-                    let mut i: u64 = 0;
-                    for token in tokens {
-                        println!("Token {} : {}", i, token.to_string());
-                        i += 1;
+                Ok(statements) => {
+                    match interpreter.interpret(statements) {
+                        Ok(_) => (),
+                        Err(e) => return Err(e.to_string()),
                     }
-                    match expr.evaluate() {
-                        Ok(result) => {
-                            println!("RESULT : {}", result.to_string());
-                            println!("{}", expr.to_string());
-                            return Ok(());
-                        }
-                        Err(err) => {
-                            return Err(err.to_string());
-                        }
-                    }
+
+                    return Ok(());
                 }
-                Err(_) => todo!(),
+                Err(e) => {
+                    return Err(format!("{}", e));
+                }
             }
         }
         Err(e) => {
@@ -92,9 +97,10 @@ fn open_shell() -> Result<(), String> {
         match run(buffer.clone()) {
             Ok(_) => {
                 buffer.clear();
+                println!("");
             }
             Err(msg) => {
-                eprintln!("ERROR : {}", msg);
+                eprintln!("{} : {}", "ERROR".red(), msg);
             }
         }
     }

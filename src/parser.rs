@@ -2,10 +2,11 @@ use crate::{
     errors::Error,
     expressions::Expression,
     scanner::{LiteralValue, Token, TokenType},
+    statements::Statement,
 };
 
 pub struct Parser {
-    tokens: Vec<Token>,
+    pub(crate) tokens: Vec<Token>,
     current: usize,
 }
 
@@ -196,7 +197,7 @@ impl Parser {
         } else if self.match_tokens(&[TokenType::LEFT_PAREN]) {
             match self.expression() {
                 Ok(expr) => {
-                    match self.consume(TokenType::RIGHT_PAREN) {
+                    match self.consume(TokenType::RIGHT_PAREN, "Missing ')'".to_string()) {
                         Ok(_) => (),
                         Err(err) => return Err(err),
                     }
@@ -214,11 +215,11 @@ impl Parser {
         }
     }
 
-    fn consume(self: &mut Self, typ: TokenType) -> Result<Token, Error> {
+    fn consume(self: &mut Self, typ: TokenType, msg: String) -> Result<Token, Error> {
         if self.check(&typ) {
             return Ok(self.advance().clone());
         } else {
-            return Err(Error::UnterminatedParenthesis(self.peek()));
+            return Err(Error::ExpectedAToken(self.peek(), msg));
         }
     }
 
@@ -250,10 +251,61 @@ impl Parser {
         }
     }
 
-    pub fn parse(self: &mut Self) -> Result<Expression, Error> {
+    pub fn parse(self: &mut Self) -> Result<Vec<Statement>, Error> {
+        let mut statements: Vec<Statement> = Vec::new();
+        // match self.expression() {
+        //     Ok(expr) => Ok(expr),
+        //     Err(err) => Err(err),
+        // }
+        while !self.is_at_end() {
+            match self.statement() {
+                Ok(statement) => {
+                    statements.push(statement);
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            }
+        }
+        return Ok(statements);
+    }
+
+    fn statement(self: &mut Self) -> Result<Statement, Error> {
+        if self.match_tokens(&[TokenType::PRINT]) {
+            self.print_statement()
+        } else {
+            self.expr_statement()
+        }
+    }
+
+    fn print_statement(self: &mut Self) -> Result<Statement, Error> {
         match self.expression() {
-            Ok(expr) => Ok(expr),
-            Err(err) => Err(err),
+            Ok(value) => {
+                match self.consume(TokenType::SEMICOLON, "Expect ';' after value.".to_string()) {
+                    Ok(_) => {}
+                    Err(err) => {
+                        return Err(err);
+                    }
+                }
+                // print!("{}", value.to_string());
+                return Ok(Statement::PrintStatement(value));
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    fn expr_statement(self: &mut Self) -> Result<Statement, Error> {
+        match self.expression() {
+            Ok(value) => {
+                match self.consume(TokenType::SEMICOLON, "Expect ';' after value.".to_string()) {
+                    Ok(_) => {}
+                    Err(err) => {
+                        return Err(err);
+                    }
+                }
+                return Ok(Statement::ExpressionStatement(value));
+            }
+            Err(e) => Err(e),
         }
     }
 }

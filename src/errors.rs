@@ -17,6 +17,7 @@ pub enum Error {
     InvalidUnaryOperation(LiteralValue, Token),
     UnterminatedParenthesis(Token),
     InvalidBinaryOperation(LiteralValue, Token, LiteralValue),
+    ExpectedAToken(Token, String),
 
     // PARSING ERROR
     ParsingError(String, i128),
@@ -75,6 +76,9 @@ impl Error {
                     operation.token_type.to_string(),
                     value.to_string()
                 )
+            }
+            Error::ExpectedAToken(token, msg) => {
+                format!("EXPECTED A TOKEN : {} on line {}", msg, token.line_number)
             }
         }
     }

@@ -135,9 +135,7 @@ impl<'a> Scanner<'a> {
                     self.add_token(TokenType::SLASH);
                 }
             }
-            ' ' => {
-                
-            }
+            ' ' => {}
             '\n' => {
                 self.line += 1;
             }
@@ -197,6 +195,24 @@ impl<'a> Scanner<'a> {
             while is_digit(self.peek()) {
                 self.advance();
             }
+            if !self.is_at_end() {
+                let next = self.peek() as char;
+                match next {
+                    '=' | '!' | '*' | '+' | '-' | '/' | '>' | '<' | ' ' | ';' | ')' | '(' => {}
+                    _ => {
+                        return Err(Error::ExpectedAToken(
+                            Token {
+                                token_type: TokenType::BAD_TOKEN,
+                                lexeme: "".to_string(),
+                                literal: None,
+                                line_number: self.line,
+                            },
+                            "valid tokens : '=' | '!' | '*' | '+' | '-' | '/' | '>' | '<' | ' ' | ';' | ')' | '('"
+                                .to_string(),
+                        ));
+                    }
+                }
+            }
             let mut substr: String = String::new();
             for i in self.start..self.current {
                 substr.push(self.source_as_bytes[i] as char);
@@ -214,6 +230,25 @@ impl<'a> Scanner<'a> {
                 }
             }
         } else {
+            if !self.is_at_end() {
+                let next = self.peek() as char;
+                match next {
+                    '=' | '!' | '*' | '+' | '-' | '/' | '>' | '<' | ' ' | ';' | '.' | ')' | '(' => {
+                    }
+                    _ => {
+                        return Err(Error::ExpectedAToken(
+                            Token {
+                                token_type: TokenType::BAD_TOKEN,
+                                lexeme: "".to_string(),
+                                literal: None,
+                                line_number: self.line,
+                            },
+                            "valid token : '=' | '!' | '*' | '+' | '-' | '/' | '>' | '<' | ' ' | ';' | '.' | ')' | '('"
+                                .to_string(),
+                        ));
+                    }
+                }
+            }
             let mut substr: String = String::new();
             for i in self.start..self.current {
                 substr.push(self.source_as_bytes[i] as char);
@@ -358,6 +393,7 @@ pub enum TokenType {
     WHILE,
 
     EOF,
+    BAD_TOKEN,
 }
 
 impl std::fmt::Display for TokenType {
@@ -414,6 +450,32 @@ impl LiteralValue {
             }
             LiteralValue::Nil => {
                 return Ok(LiteralValue::True);
+            }
+        }
+    }
+
+    pub fn to_string(self: &Self) -> String {
+        match self {
+            LiteralValue::IntValue(value) => {
+                return value.to_string();
+            }
+            LiteralValue::FValue(value) => {
+                return value.to_string();
+            }
+            LiteralValue::StringValue(value) => {
+                return value.to_string();
+            }
+            LiteralValue::IdentifierValue(value) => {
+                return value.to_string();
+            }
+            LiteralValue::True => {
+                return "true".to_string();
+            }
+            LiteralValue::False => {
+                return "false".to_string();
+            }
+            LiteralValue::Nil => {
+                return "nil".to_string();
             }
         }
     }

@@ -51,8 +51,7 @@ impl Expression {
         }
     }
 
-    // Task for tomorrow : Define edge cases showing more plausible errors
-    // Check for division by zero
+
     pub fn evaluate(self: &Self) -> Result<LiteralValue, Error> {
         match self {
             Expression::Binary {
